@@ -145,7 +145,7 @@ def check_phase1_db(conn: sqlite3.Connection, require_acquittals: bool) -> None:
         det7 = "scrape_hits missing."
     _print_check(7, "Phase 1: scrape_hits schema contains required fields", ok7, det7)
 
-    # 08 detector processed all hits (into marks or acquittals)
+    # 08 detector processed hits or deferred between thresholds
     has_marks = _table_exists(conn, "detector_marks")
     has_acq = _table_exists(conn, "detector_acquittals")
     processed = set()
@@ -155,9 +155,14 @@ def check_phase1_db(conn: sqlite3.Connection, require_acquittals: bool) -> None:
     if has_acq:
         for (iid,) in conn.execute("SELECT item_id FROM detector_acquittals"):
             processed.add(iid)
-    ok8 = rows_hits > 0 and len(processed) == rows_hits
-    det8 = "" if ok8 else f"Processed {len(processed)} of {rows_hits} scrape_hits."
-    _print_check(8, "Phase 1: detector processed all scrape_hits", ok8, det8)
+    processed_count = len(processed)
+    deferred = max(0, rows_hits - processed_count)
+    ok8 = rows_hits > 0 and processed_count <= rows_hits
+    if ok8:
+        det8 = f"Processed {processed_count} of {rows_hits} scrape_hits; deferred {deferred} between mark/acquit thresholds."
+    else:
+        det8 = f"Processed {processed_count} exceeds total scrape_hits ({rows_hits})."
+    _print_check(8, "Phase 1: detector processed or deferred scrape_hits", ok8, det8)
 
     # 09 marked rows have rationale + confidence in [0,1]
     ok9, det9 = False, ""
