@@ -33,7 +33,8 @@ env/
 reports/
 *.csv
 *.md
-!docs/*.md  # keep docs under version control
+# keep docs markdown under version control
+!docs/*.md
 
 # Test & coverage
 .coverage
