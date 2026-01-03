@@ -2,7 +2,7 @@
 import argparse, sqlite3, sys
 from pathlib import Path
 
-DB_DEFAULT = "inquisitor_net.db"
+DB_DEFAULT = "inquisitor_net_phase1.db"
 
 SCHEMA = {
     "labels": "CREATE TABLE IF NOT EXISTS labels(item_id TEXT PRIMARY KEY, label TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)"
