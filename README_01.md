@@ -66,7 +66,7 @@ DB migrations: `migrations/001_init.sql`.
 ## New commands
 - Policy Gate (dry-run):
 ```
-python -m phase2.gate_cli --db inquisitor_net_phase1.db --input fixtures/drafts.jsonl
+python -m phase2.gate_cli --config config/policy_gate.yaml --input fixtures/drafts.jsonl --output tmp_gate.jsonl
 ```
 - Label a small sample (auto-skip placeholder labels):
 ```
@@ -80,4 +80,3 @@ python -m phase2.metrics_job --db inquisitor_net_phase1.db --since 7
 ## Notes
 - The policy gate reads regex checks from `config/policy_gate.yml` (or `.yaml`).
 - All Phase 2 writes are internal only (no public posting).
-
