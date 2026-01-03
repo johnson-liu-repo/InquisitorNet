@@ -1,7 +1,9 @@
 from __future__ import annotations
 from pathlib import Path
-import json, re, time
-from typing import Dict, Any, List, Iterable
+import json, re, time, os
+from typing import Dict, Any, List, Iterable, Optional
+
+from core.reddit_client import RedditClient
 
 def regex_list(patterns: List[str]) -> List[re.Pattern]:
     return [re.compile(p) for p in patterns]
@@ -47,6 +49,32 @@ def iter_fixtures(fixtures_path: str|Path) -> Iterable[Dict[str, Any]]:
             if line.strip():
                 yield json.loads(line)
 
+
+def iter_offline_db(conn, table: str = "fixtures_submissions", limit: Optional[int] = None) -> Iterable[Dict[str, Any]]:
+    """Read pseudo-subreddit rows from a local table for offline testing."""
+    cur = conn.cursor()
+    sql = f"SELECT id, subreddit, author, body, created_utc, parent_id, link_id, permalink, post_meta_json FROM {table}"
+    try:
+        if limit:
+            sql += " LIMIT ?"
+            cur.execute(sql, (limit,))
+        else:
+            cur.execute(sql)
+    except Exception as exc:
+        raise RuntimeError(f"Offline table '{table}' missing; run migrations or switch mode.") from exc
+    for row in cur.fetchall():
+        yield {
+            "id": row[0],
+            "subreddit": row[1],
+            "author": row[2],
+            "body": row[3],
+            "created_utc": row[4],
+            "parent_id": row[5],
+            "link_id": row[6],
+            "permalink": row[7],
+            "post_meta": json.loads(row[8]) if row[8] else {},
+        }
+
 def run_scraper_to_db(settings, conn):
     """Run the scraper and store results in the database.
 
@@ -67,13 +95,27 @@ def run_scraper_to_db(settings, conn):
     policy = cfg.get('match_policy', 'any')
     mode = settings.subreddits.get('mode', 'fixtures')
     fixtures_path = settings.subreddits.get('fixtures_path', 'fixtures/reddit_sample.jsonl')
+    offline_table = settings.subreddits.get('offline_table', 'fixtures_submissions')
+    read_limit = settings.subreddits.get('read_limit')
 
     cur = conn.cursor()
 
     if mode == 'fixtures':
         stream = iter_fixtures(fixtures_path)
+    elif mode == 'offline':
+        stream = iter_offline_db(conn, offline_table, read_limit)
+    elif mode == 'api':
+        rcfg = {
+            "client_id": os.getenv("REDDIT_CLIENT_ID"),
+            "client_secret": os.getenv("REDDIT_CLIENT_SECRET"),
+            "username": os.getenv("REDDIT_USERNAME"),
+            "password": os.getenv("REDDIT_PASSWORD"),
+            "user_agent": os.getenv("REDDIT_USER_AGENT", "InquisitorNetBot/0.1"),
+        }
+        client = RedditClient(rcfg)
+        stream = client.stream_comments(settings.subreddits.get('allow', []), limit=read_limit)
     else:
-        raise NotImplementedError('API mode not wired in Phase 1 scaffold.')
+        raise ValueError(f"Unknown mode {mode}")
 
     kept = 0
     for item in stream:

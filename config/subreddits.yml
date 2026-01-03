@@ -2,5 +2,7 @@ allow:
   - InquisitorNetPrivateA
   - InquisitorNetPrivateB
 avoid: []
-mode: "fixtures"          # api | fixtures
+mode: "fixtures"          # api | fixtures | offline
 fixtures_path: "fixtures/reddit_sample.jsonl"
+offline_table: "fixtures_submissions"   # used when mode=offline
+read_limit: 200           # max items to pull per run (api/offline); None means stream all
