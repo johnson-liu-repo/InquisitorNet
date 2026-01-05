@@ -1,4 +1,4 @@
-# phase2/metrics_job.py
+# inquisitor/metrics/metrics_job.py
 import argparse, sqlite3, csv
 from pathlib import Path
 from datetime import datetime, timedelta

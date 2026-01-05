@@ -1,4 +1,4 @@
-# phase2/gate.py
+# inquisitor/policy/gate.py
 from __future__ import annotations
 import re
 import json

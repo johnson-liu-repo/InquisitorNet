@@ -36,7 +36,7 @@ python inquisitor_net.py  # starts scheduler
 
 ---
 
-# Phase 1 (adapted) - Scraper + Detector
+# Ingestion pipeline (scraper + detector)
 
 This repository now contains a **Phase 1 pipeline** that matches your latest scope:  
 - **Set‑1 Scraper** with allow/avoid controls and a **fixtures** mode (default).  
@@ -47,7 +47,7 @@ This repository now contains a **Phase 1 pipeline** that matches your latest sco
 
 ```bash
 python -m pip install -r requirements.txt
-python -m phase1.cli
+python -m inquisitor.ingestion.cli
 # -> Scraper kept X items. Detector → marked Y, acquitted Z. DB: inquisitor_net_phase1.db
 ```
 
@@ -61,20 +61,20 @@ DB migrations: `migrations/001_init.sql`.
 **Note:** Reddit API mode is scaffolded but not enabled in this Phase‑1 adaptation; use fixtures until your private sub is ready.
 
 
-# Phase 2: Policy Gate, Labeling, and Metrics (dry-run)
+# Policy Gate, Labeling, and Metrics (dry-run)
 
 ## New commands
 - Policy Gate (dry-run):
 ```
-python -m phase2.gate_cli --config config/policy_gate.yaml --input fixtures/drafts.jsonl --output tmp_gate.jsonl
+python -m inquisitor.policy.gate_cli --config config/policy_gate.yaml --input fixtures/drafts.jsonl --output tmp_gate.jsonl
 ```
 - Label a small sample (auto-skip placeholder labels):
 ```
-python -m phase2.label_cli --db inquisitor_net_phase1.db --mode auto-skip --sample 10
+python -m inquisitor.labeling.label_cli --db inquisitor_net_phase1.db --mode auto-skip --sample 10
 ```
 - Compute and store daily metrics:
 ```
-python -m phase2.metrics_job --db inquisitor_net_phase1.db --since 7
+python -m inquisitor.metrics.metrics_job --db inquisitor_net_phase1.db --since 7
 ```
 
 ## Notes

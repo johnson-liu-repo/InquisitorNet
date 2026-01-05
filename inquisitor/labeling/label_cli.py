@@ -1,4 +1,4 @@
-# phase2/label_cli.py
+# inquisitor/labeling/label_cli.py
 import argparse, sqlite3, sys
 from pathlib import Path
 

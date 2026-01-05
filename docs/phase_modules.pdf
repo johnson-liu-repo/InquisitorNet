@@ -4,248 +4,244 @@
 << /Type /Catalog /Pages 2 0 R >>
 endobj
 2 0 obj
-<< /Type /Pages /Kids [3 0 R 5 0 R 7 0 R 9 0 R] /Count 4 >>
+<< /Type /Pages /Kids [3 0 R 5 0 R 7 0 R] /Count 3 >>
 endobj
 3 0 obj
-<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 11 0 R >> >> >>
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 9 0 R >> >> >>
 endobj
 4 0 obj
-<< /Length 2638 >>
+<< /Length 2986 >>
 stream
 BT
 /F1 12 Tf
 72 720 Td
-(# InquisitorNet Phase Modules Guide) Tj
+(# InquisitorNet Functional Modules & Refactor Report) Tj
 0 -14 Td
 () Tj
 0 -14 Td
-(## Overview) Tj
+(## Refactor Summary \(What Changed & Why\)) Tj
 0 -14 Td
-(InquisitorNet is organized into three explicit phases that build on one another:) Tj
+(This report documents the directory refactor that removed the phase-based layout in favor) Tj
 0 -14 Td
-() Tj
+(of functional, capability-driven modules. The goal is to make the repository easier to) Tj
 0 -14 Td
-(- **Phase 1 \(Foundations\)** ingests data and runs the first-pass detector.) Tj
+(navigate, align with common Python package conventions, and decouple directory names from) Tj
 0 -14 Td
-(- **Phase 2 \(Calibration + Policy Gate\)** adds labeling, metrics, and an auditable policy) Tj
-0 -14 Td
-(gate for drafts.) Tj
-0 -14 Td
-(- **Phase 3 \(Inquisitor Actions\)** plans actions \(posts, dossiers, logs\) based on marks,) Tj
-0 -14 Td
-(and reuses the policy gate to keep outputs compliant.) Tj
+(implementation milestones.) Tj
 0 -14 Td
 () Tj
 0 -14 Td
-(Each phase is implemented as a Python package \(`phase1/`, `phase2/`, `phase3/`\) with one) Tj
+(### Why the change) Tj
 0 -14 Td
-(or more CLI entry points. The phases share configuration and the SQLite database schema) Tj
+(- **Clarity over chronology:** Phase names describe project progress, not what the code) Tj
 0 -14 Td
-(stored under `migrations/`.) Tj
+(does. Functional folders make discovery and ownership clearer.) Tj
+0 -14 Td
+(- **Scalability:** As features grow, functional modules make it easier to add new) Tj
+0 -14 Td
+(capabilities without creating new “phase” buckets.) Tj
+0 -14 Td
+(- **Standard Python structure:** Grouping by capability aligns with common industry) Tj
+0 -14 Td
+(layouts \(e.g., `ingestion`, `policy`, `metrics`\).) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(### What changed \(high level\)) Tj
+0 -14 Td
+(- **Removed**: `phase1/`, `phase2/`, `phase3/` directory structure.) Tj
+0 -14 Td
+(- **Added**: `inquisitor/` package with functional subpackages.) Tj
+0 -14 Td
+(- **Updated**: CLI module paths, imports, and documentation references.) Tj
+0 -14 Td
+(- **Regenerated**: This PDF to provide an auditable report of the refactor.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(### Old → New module mapping) Tj
+0 -14 Td
+(| Old path | New path | Rationale |) Tj
+0 -14 Td
+(| --- | --- | --- |) Tj
+0 -14 Td
+(| `phase1/cli.py` | `inquisitor/ingestion/cli.py` | CLI belongs to ingestion pipeline. |) Tj
+0 -14 Td
+(| `phase1/config.py` | `inquisitor/ingestion/config.py` | Configuration is ingestion-) Tj
+0 -14 Td
+(specific. |) Tj
+0 -14 Td
+(| `phase1/db.py` | `inquisitor/ingestion/db.py` | DB helpers are used by ingestion. |) Tj
+0 -14 Td
+(| `phase1/scraper.py` | `inquisitor/ingestion/scraper.py` | Scraper is the ingestion entry) Tj
+0 -14 Td
+(point. |) Tj
+0 -14 Td
+(| `phase1/detector.py` | `inquisitor/ingestion/detector.py` | Detector is part of) Tj
+0 -14 Td
+(ingestion pipeline. |) Tj
+0 -14 Td
+(| `phase2/gate.py` | `inquisitor/policy/gate.py` | Gate is a policy capability. |) Tj
+0 -14 Td
+(| `phase2/gate_cli.py` | `inquisitor/policy/gate_cli.py` | CLI aligns with policy) Tj
+0 -14 Td
+(capability. |) Tj
+0 -14 Td
+(| `phase2/label_cli.py` | `inquisitor/labeling/label_cli.py` | Labeling is a standalone) Tj
+0 -14 Td
+(capability. |) Tj
+0 -14 Td
+(| `phase2/metrics_job.py` | `inquisitor/metrics/metrics_job.py` | Metrics is a reporting) Tj
+0 -14 Td
+(capability. |) Tj
+0 -14 Td
+(| `phase3/inquisitor_cli.py` | `inquisitor/operations/inquisitor_cli.py` | Action planning) Tj
+0 -14 Td
+(is an operations concern. |) Tj
+0 -14 Td
+(| `phase3/bots/base.py` | `inquisitor/operations/bots/base.py` | Bots are part of) Tj
+0 -14 Td
+(operations. |) Tj
 0 -14 Td
 () Tj
 0 -14 Td
 (---) Tj
-0 -14 Td
-() Tj
-0 -14 Td
-(## Phase 1: Foundations \(Ingestion + Detection\)) Tj
-0 -14 Td
-() Tj
-0 -14 Td
-(**Purpose:** Gather candidate content, persist it in SQLite, and run a deterministic rule-) Tj
-0 -14 Td
-(based detector to mark or acquit items.) Tj
-0 -14 Td
-() Tj
-0 -14 Td
-(### `phase1/cli.py`) Tj
-0 -14 Td
-(- The orchestration entry point for Phase 1.) Tj
-0 -14 Td
-(- Loads settings from `config/` via `phase1.config.Settings`.) Tj
-0 -14 Td
-(- Applies database migrations \(`migrations/001_init.sql` and) Tj
-0 -14 Td
-(`migrations/004_offline_fixtures.sql`\).) Tj
-0 -14 Td
-(- Runs the scraper \(`phase1.scraper.run_scraper_to_db`\) and detector) Tj
-0 -14 Td
-(\(`phase1.detector.run_detector_to_db`\).) Tj
-0 -14 Td
-(- Outputs a summary of how many items were kept, marked, or acquitted.) Tj
-0 -14 Td
-() Tj
-0 -14 Td
-(### `phase1/config.py`) Tj
-0 -14 Td
-(- Loads YAML configuration for all Phase 1 components.) Tj
-0 -14 Td
-(- Sources:) Tj
-0 -14 Td
-(  - `config/subreddits.yml` \(mode selection, fixtures path, allow list\)) Tj
-0 -14 Td
-(  - `config/scraper_rules.yml` \(scraper keyword rules\)) Tj
-0 -14 Td
-(  - `config/detector_rules.yml` \(detector patterns and thresholds\)) Tj
-0 -14 Td
-(- Stores the resolved database path \(defaults to `inquisitor_net_phase1.db`\).) Tj
-0 -14 Td
-() Tj
-0 -14 Td
-(### `phase1/db.py`) Tj
-0 -14 Td
-(- Thin helpers to connect to SQLite and execute migrations.) Tj
-0 -14 Td
-(- `get_conn\(\)` ensures the parent directory exists and returns a `sqlite3.Connection`.) Tj
-0 -14 Td
-(- `migrate\(\)` executes a given SQL script and commits.) Tj
-0 -14 Td
-() Tj
-0 -14 Td
-(### `phase1/scraper.py`) Tj
-0 -14 Td
-(- Implements the ingestion step that yields and stores candidate items.) Tj
 0 -14 Td
 ET
 endstream
 endobj
 5 0 obj
-<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 6 0 R /Resources << /Font << /F1 11 0 R >> >> >>
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 6 0 R /Resources << /Font << /F1 9 0 R >> >> >>
 endobj
 6 0 obj
-<< /Length 2767 >>
+<< /Length 2328 >>
 stream
 BT
 /F1 12 Tf
 72 720 Td
-(- Inputs depend on mode:) Tj
+() Tj
 0 -14 Td
-(  - **fixtures:** reads JSONL from `fixtures/reddit_sample.jsonl`.) Tj
-0 -14 Td
-(  - **offline:** reads local DB table rows for deterministic tests.) Tj
-0 -14 Td
-(  - **api:** streams real Reddit comments via `core.reddit_client.RedditClient`.) Tj
-0 -14 Td
-(- Applies inclusion/exclusion regex rules from `config/scraper_rules.yml`.) Tj
-0 -14 Td
-(- Uses a simple `discard_if` mechanism \(e.g., `len\(body\) < N`\) to skip short content.) Tj
-0 -14 Td
-(- Writes kept rows to `scrape_hits` with redacted author tokens and stored regex hits.) Tj
+(## Functional Module Guide) Tj
 0 -14 Td
 () Tj
 0 -14 Td
-(### `phase1/detector.py`) Tj
+(### Ingestion \(`inquisitor/ingestion/`\)) Tj
 0 -14 Td
-(- Runs a rule-based detector over `scrape_hits`.) Tj
-0 -14 Td
-(- Compiles regex rules from `config/detector_rules.yml` into weighted patterns with) Tj
-0 -14 Td
-(optional exculpatory matches.) Tj
-0 -14 Td
-(- Scores each item and compares it against thresholds:) Tj
-0 -14 Td
-(  - **mark** → inserts into `detector_marks`.) Tj
-0 -14 Td
-(  - **acquit** → inserts into `detector_acquittals`.) Tj
-0 -14 Td
-(  - **hold** → leaves the item only in `scrape_hits` for later review.) Tj
-0 -14 Td
-(- Generates rationale strings with `explain_noop\(\)` to document decisions.) Tj
+(**Purpose:** Ingest data, store in SQLite, and run the rule-based detector.) Tj
 0 -14 Td
 () Tj
 0 -14 Td
-(### Related components) Tj
+(- `cli.py`) Tj
 0 -14 Td
-(- `core/reddit_client.py` is the thin wrapper over `praw` used by the scraper in API mode.) Tj
+(  - Entry point for the ingestion pipeline.) Tj
 0 -14 Td
-(- `migrations/001_init.sql` defines foundational tables: `scrape_hits`, `detector_marks`,) Tj
+(  - Loads settings from `config/` via `inquisitor.ingestion.config.Settings`.) Tj
 0 -14 Td
-(`detector_acquittals`.) Tj
+(  - Applies migrations \(`migrations/001_init.sql`, `migrations/004_offline_fixtures.sql`\).) Tj
 0 -14 Td
-() Tj
+(  - Runs scraper and detector, then prints a summary.) Tj
 0 -14 Td
-(---) Tj
+(- `config.py`) Tj
 0 -14 Td
-() Tj
+(  - Loads YAML configuration \(`subreddits.yml`, `scraper_rules.yml`,) Tj
 0 -14 Td
-(## Phase 2: Calibration + Policy Gate) Tj
+(`detector_rules.yml`\).) Tj
 0 -14 Td
-() Tj
+(  - Sets the database path \(defaults to `inquisitor_net_phase1.db`\).) Tj
 0 -14 Td
-(**Purpose:** Improve detector quality via human labeling and metrics while adding an) Tj
+(- `db.py`) Tj
 0 -14 Td
-(auditable policy gate for outgoing drafts.) Tj
+(  - SQLite connection and migration helpers.) Tj
 0 -14 Td
-() Tj
+(- `scraper.py`) Tj
 0 -14 Td
-(### `phase2/gate.py`) Tj
+(  - Reads from fixtures, offline DB, or Reddit API.) Tj
 0 -14 Td
-(- Core logic for policy gating.) Tj
+(  - Applies regex include/exclude rules and `discard_if` filters.) Tj
 0 -14 Td
-(- Loads regex policy rules from `config/policy_gate.yml` into `GateRule` objects.) Tj
+(  - Writes kept items to `scrape_hits`.) Tj
 0 -14 Td
-(- Evaluates text and returns a `GateDecision` with:) Tj
+(- `detector.py`) Tj
 0 -14 Td
-(  - **decision:** `allow`, `flag`, or `block`.) Tj
+(  - Compiles regex rules with weights and exculpatory patterns.) Tj
 0 -14 Td
-(  - **reasons:** matched rule metadata and snippets.) Tj
-0 -14 Td
-(  - **llm_reason:** optional explanation from a stub LLM provider.) Tj
-0 -14 Td
-(- Default policy: any `block` hit → block; else if `flag` score ≥ 1 → flag; otherwise) Tj
-0 -14 Td
-(allow.) Tj
+(  - Inserts into `detector_marks` or `detector_acquittals` based on thresholds.) Tj
 0 -14 Td
 () Tj
 0 -14 Td
-(### `phase2/gate_cli.py`) Tj
+(### Policy \(`inquisitor/policy/`\)) Tj
 0 -14 Td
-(- CLI wrapper that reads a JSONL file of drafts \(`{"text": ...}`\) and writes policy) Tj
-0 -14 Td
-(decisions.) Tj
-0 -14 Td
-(- Invokes `phase2.gate.check_draft\(\)` for each item.) Tj
-0 -14 Td
-(- Produces an auditable JSONL output with decision metadata and reasons.) Tj
+(**Purpose:** Apply policy checks to outgoing drafts.) Tj
 0 -14 Td
 () Tj
+0 -14 Td
+(- `gate.py`) Tj
+0 -14 Td
+(  - Loads rules from `config/policy_gate.yml`.) Tj
+0 -14 Td
+(  - Returns `allow`, `flag`, or `block` decisions with reasons.) Tj
+0 -14 Td
+(- `gate_cli.py`) Tj
+0 -14 Td
+(  - Reads JSONL drafts and writes JSONL decisions.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(### Labeling \(`inquisitor/labeling/`\)) Tj
+0 -14 Td
+(**Purpose:** Human labeling of detector outcomes.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(- `label_cli.py`) Tj
+0 -14 Td
+(  - Samples `detector_marks` / `detector_acquittals`.) Tj
+0 -14 Td
+(  - Prompts for TP/FP/TN/FN labels and writes to `labels`.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(### Metrics \(`inquisitor/metrics/`\)) Tj
+0 -14 Td
+(**Purpose:** Aggregated reporting for model quality.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(- `metrics_job.py`) Tj
+0 -14 Td
+(  - Computes precision/recall/F1 from `labels`.) Tj
 0 -14 Td
 ET
 endstream
 endobj
 7 0 obj
-<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 8 0 R /Resources << /Font << /F1 11 0 R >> >> >>
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 8 0 R /Resources << /Font << /F1 9 0 R >> >> >>
 endobj
 8 0 obj
-<< /Length 2506 >>
+<< /Length 1310 >>
 stream
 BT
 /F1 12 Tf
 72 720 Td
-(### `phase2/label_cli.py`) Tj
-0 -14 Td
-(- CLI tool for human labeling of detector outcomes.) Tj
-0 -14 Td
-(- Samples items from `detector_marks` and `detector_acquittals`.) Tj
-0 -14 Td
-(- Prompts for TP/FP/TN/FN labels and stores them in the `labels` table.) Tj
+(  - Writes CSV and Markdown reports to `reports/metrics/`.) Tj
 0 -14 Td
 () Tj
 0 -14 Td
-(### `phase2/metrics_job.py`) Tj
+(### Operations \(`inquisitor/operations/`\)) Tj
 0 -14 Td
-(- Aggregates labels into detector metrics \(precision, recall, F1\).) Tj
-0 -14 Td
-(- Outputs both CSV and Markdown reports under `reports/metrics/`.) Tj
+(**Purpose:** Plan actions based on detector outputs.) Tj
 0 -14 Td
 () Tj
 0 -14 Td
-(### Related components) Tj
+(- `inquisitor_cli.py`) Tj
 0 -14 Td
-(- `config/policy_gate.yml` contains regex rules and actions \(note/flag/block\).) Tj
+(  - Reads marks, chooses actions via bots, gates post drafts.) Tj
 0 -14 Td
-(- `migrations/002_phase2.sql` adds Phase 2 tables such as `labels` and `policy_checks`.) Tj
+(  - Writes `planned_actions` and `dossiers` in SQLite.) Tj
+0 -14 Td
+(- `bots/base.py`) Tj
+0 -14 Td
+(  - Defines `BaseBot` decision logic and `InquisitorPersonality`.) Tj
 0 -14 Td
 () Tj
 0 -14 Td
@@ -253,57 +249,17 @@ BT
 0 -14 Td
 () Tj
 0 -14 Td
-(## Phase 3: Inquisitor Actions) Tj
+(## Updated CLI Entry Points) Tj
 0 -14 Td
-() Tj
+(- `python -m inquisitor.ingestion.cli`) Tj
 0 -14 Td
-(**Purpose:** Translate detector marks into concrete planned actions \(posts, dossiers,) Tj
+(- `python -m inquisitor.policy.gate_cli`) Tj
 0 -14 Td
-(logs\) while reusing the policy gate to prevent unsafe outputs.) Tj
+(- `python -m inquisitor.labeling.label_cli`) Tj
 0 -14 Td
-() Tj
+(- `python -m inquisitor.metrics.metrics_job`) Tj
 0 -14 Td
-(### `phase3/inquisitor_cli.py`) Tj
-0 -14 Td
-(- CLI pipeline for Phase 3.) Tj
-0 -14 Td
-(- Reads a JSONL file of marks \(`item_id`, `score`, `rationale`\).) Tj
-0 -14 Td
-(- Uses `phase3.bots.BaseBot` to decide an action for each mark.) Tj
-0 -14 Td
-(- If the action is a **post**, it is passed through the Phase 2 policy gate; blocked or) Tj
-0 -14 Td
-(flagged posts are downgraded to dossiers.) Tj
-0 -14 Td
-(- Inserts planned actions into `planned_actions` and generated dossiers into `dossiers`.) Tj
-0 -14 Td
-() Tj
-0 -14 Td
-(### `phase3/bots/base.py`) Tj
-0 -14 Td
-(- Defines the simplest decision policy via `BaseBot`:) Tj
-0 -14 Td
-(  - score ≥ 0.8 → create a **post** draft.) Tj
-0 -14 Td
-(  - score ≥ 0.5 → create a **dossier**.) Tj
-0 -14 Td
-(  - otherwise → **log** only.) Tj
-0 -14 Td
-(- `InquisitorPersonality` provides a minimal persona configuration \(name, style, traits\)) Tj
-0 -14 Td
-(for future expansion.) Tj
-0 -14 Td
-() Tj
-0 -14 Td
-(### Related components) Tj
-0 -14 Td
-(- Phase 3 stores outputs in SQLite tables created by `ensure_phase3_tables\(\)` inside the) Tj
-0 -14 Td
-(CLI.) Tj
-0 -14 Td
-(- It reuses `phase2.gate.check_draft\(\)` for the same policy standards established in Phase) Tj
-0 -14 Td
-(2.) Tj
+(- `python -m inquisitor.operations.inquisitor_cli`) Tj
 0 -14 Td
 () Tj
 0 -14 Td
@@ -311,72 +267,36 @@ BT
 0 -14 Td
 () Tj
 0 -14 Td
-(## End-to-End Flow \(Quick Summary\)) Tj
+(## Compatibility Notes) Tj
 0 -14 Td
-(1. **Phase 1** ingests content and stores `scrape_hits`, then marks or acquits via regex) Tj
+(- Database schema remains unchanged; existing migrations still apply.) Tj
+0 -14 Td
+(- Import paths have been updated to match new module locations.) Tj
+0 -14 Td
+(- Phase naming is retained in data/models for historical continuity, but directory names) Tj
+0 -14 Td
+(are now functional.) Tj
 0 -14 Td
 ET
 endstream
 endobj
 9 0 obj
-<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 10 0 R /Resources << /Font << /F1 11 0 R >> >> >>
-endobj
-10 0 obj
-<< /Length 835 >>
-stream
-BT
-/F1 12 Tf
-72 720 Td
-(scoring.) Tj
-0 -14 Td
-(2. **Phase 2** lets humans label detector results and generates daily metrics; it also) Tj
-0 -14 Td
-(adds the policy gate for outgoing drafts.) Tj
-0 -14 Td
-(3. **Phase 3** consumes marks to plan actions and routes any public-facing draft through) Tj
-0 -14 Td
-(the Phase 2 gate.) Tj
-0 -14 Td
-() Tj
-0 -14 Td
-(---) Tj
-0 -14 Td
-() Tj
-0 -14 Td
-(## Suggested Starting Points for Newcomers) Tj
-0 -14 Td
-(- Start with `phase1/cli.py` to see the entry point and control flow.) Tj
-0 -14 Td
-(- Follow the data flow in `scraper.py` → `detector.py` → SQLite tables.) Tj
-0 -14 Td
-(- Explore `phase2/gate.py` to understand the policy logic used in later phases.) Tj
-0 -14 Td
-(- Review `phase3/inquisitor_cli.py` and `phase3/bots/base.py` for the action planning) Tj
-0 -14 Td
-(layer.) Tj
-0 -14 Td
-ET
-endstream
-endobj
-11 0 obj
 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
 endobj
 xref
-0 12
+0 10
 0000000000 65535 f 
 0000000015 00000 n 
 0000000064 00000 n 
-0000000139 00000 n 
-0000000266 00000 n 
-0000002955 00000 n 
-0000003082 00000 n 
-0000005900 00000 n 
-0000006027 00000 n 
-0000008584 00000 n 
-0000008712 00000 n 
-0000009598 00000 n 
+0000000133 00000 n 
+0000000259 00000 n 
+0000003296 00000 n 
+0000003422 00000 n 
+0000005801 00000 n 
+0000005927 00000 n 
+0000007288 00000 n 
 trailer
-<< /Size 12 /Root 1 0 R >>
+<< /Size 10 /Root 1 0 R >>
 startxref
-9669
+7358
 %%EOF

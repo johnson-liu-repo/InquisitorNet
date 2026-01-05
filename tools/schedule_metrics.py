@@ -3,7 +3,17 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 import subprocess, sys
 
 def run_metrics():
-    cmd = [sys.executable, "-m", "phase2.metrics_job", "--db", "inquisitor_net.db", "--days", "7", "--out", "reports/metrics"]
+    cmd = [
+        sys.executable,
+        "-m",
+        "inquisitor.metrics.metrics_job",
+        "--db",
+        "inquisitor_net.db",
+        "--days",
+        "7",
+        "--out",
+        "reports/metrics",
+    ]
     subprocess.run(cmd, check=False)
 
 def main():
