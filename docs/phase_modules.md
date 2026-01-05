@@ -1,131 +1,103 @@
-# InquisitorNet Phase Modules Guide
+# InquisitorNet Functional Modules & Refactor Report
 
-## Overview
-InquisitorNet is organized into three explicit phases that build on one another:
+## Refactor Summary (What Changed & Why)
+This report documents the directory refactor that removed the phase-based layout in favor of functional, capability-driven modules. The goal is to make the repository easier to navigate, align with common Python package conventions, and decouple directory names from implementation milestones.
 
-- **Phase 1 (Foundations)** ingests data and runs the first-pass detector.
-- **Phase 2 (Calibration + Policy Gate)** adds labeling, metrics, and an auditable policy gate for drafts.
-- **Phase 3 (Inquisitor Actions)** plans actions (posts, dossiers, logs) based on marks, and reuses the policy gate to keep outputs compliant.
+### Why the change
+- **Clarity over chronology:** Phase names describe project progress, not what the code does. Functional folders make discovery and ownership clearer.
+- **Scalability:** As features grow, functional modules make it easier to add new capabilities without creating new “phase” buckets.
+- **Standard Python structure:** Grouping by capability aligns with common industry layouts (e.g., `ingestion`, `policy`, `metrics`).
 
-Each phase is implemented as a Python package (`phase1/`, `phase2/`, `phase3/`) with one or more CLI entry points. The phases share configuration and the SQLite database schema stored under `migrations/`.
+### What changed (high level)
+- **Removed**: `phase1/`, `phase2/`, `phase3/` directory structure.
+- **Added**: `inquisitor/` package with functional subpackages.
+- **Updated**: CLI module paths, imports, and documentation references.
+- **Regenerated**: This PDF to provide an auditable report of the refactor.
 
----
-
-## Phase 1: Foundations (Ingestion + Detection)
-
-**Purpose:** Gather candidate content, persist it in SQLite, and run a deterministic rule-based detector to mark or acquit items.
-
-### `phase1/cli.py`
-- The orchestration entry point for Phase 1.
-- Loads settings from `config/` via `phase1.config.Settings`.
-- Applies database migrations (`migrations/001_init.sql` and `migrations/004_offline_fixtures.sql`).
-- Runs the scraper (`phase1.scraper.run_scraper_to_db`) and detector (`phase1.detector.run_detector_to_db`).
-- Outputs a summary of how many items were kept, marked, or acquitted.
-
-### `phase1/config.py`
-- Loads YAML configuration for all Phase 1 components.
-- Sources:
-  - `config/subreddits.yml` (mode selection, fixtures path, allow list)
-  - `config/scraper_rules.yml` (scraper keyword rules)
-  - `config/detector_rules.yml` (detector patterns and thresholds)
-- Stores the resolved database path (defaults to `inquisitor_net_phase1.db`).
-
-### `phase1/db.py`
-- Thin helpers to connect to SQLite and execute migrations.
-- `get_conn()` ensures the parent directory exists and returns a `sqlite3.Connection`.
-- `migrate()` executes a given SQL script and commits.
-
-### `phase1/scraper.py`
-- Implements the ingestion step that yields and stores candidate items.
-- Inputs depend on mode:
-  - **fixtures:** reads JSONL from `fixtures/reddit_sample.jsonl`.
-  - **offline:** reads local DB table rows for deterministic tests.
-  - **api:** streams real Reddit comments via `core.reddit_client.RedditClient`.
-- Applies inclusion/exclusion regex rules from `config/scraper_rules.yml`.
-- Uses a simple `discard_if` mechanism (e.g., `len(body) < N`) to skip short content.
-- Writes kept rows to `scrape_hits` with redacted author tokens and stored regex hits.
-
-### `phase1/detector.py`
-- Runs a rule-based detector over `scrape_hits`.
-- Compiles regex rules from `config/detector_rules.yml` into weighted patterns with optional exculpatory matches.
-- Scores each item and compares it against thresholds:
-  - **mark** → inserts into `detector_marks`.
-  - **acquit** → inserts into `detector_acquittals`.
-  - **hold** → leaves the item only in `scrape_hits` for later review.
-- Generates rationale strings with `explain_noop()` to document decisions.
-
-### Related components
-- `core/reddit_client.py` is the thin wrapper over `praw` used by the scraper in API mode.
-- `migrations/001_init.sql` defines foundational tables: `scrape_hits`, `detector_marks`, `detector_acquittals`.
+### Old → New module mapping
+| Old path | New path | Rationale |
+| --- | --- | --- |
+| `phase1/cli.py` | `inquisitor/ingestion/cli.py` | CLI belongs to ingestion pipeline. |
+| `phase1/config.py` | `inquisitor/ingestion/config.py` | Configuration is ingestion-specific. |
+| `phase1/db.py` | `inquisitor/ingestion/db.py` | DB helpers are used by ingestion. |
+| `phase1/scraper.py` | `inquisitor/ingestion/scraper.py` | Scraper is the ingestion entry point. |
+| `phase1/detector.py` | `inquisitor/ingestion/detector.py` | Detector is part of ingestion pipeline. |
+| `phase2/gate.py` | `inquisitor/policy/gate.py` | Gate is a policy capability. |
+| `phase2/gate_cli.py` | `inquisitor/policy/gate_cli.py` | CLI aligns with policy capability. |
+| `phase2/label_cli.py` | `inquisitor/labeling/label_cli.py` | Labeling is a standalone capability. |
+| `phase2/metrics_job.py` | `inquisitor/metrics/metrics_job.py` | Metrics is a reporting capability. |
+| `phase3/inquisitor_cli.py` | `inquisitor/operations/inquisitor_cli.py` | Action planning is an operations concern. |
+| `phase3/bots/base.py` | `inquisitor/operations/bots/base.py` | Bots are part of operations. |
 
 ---
 
-## Phase 2: Calibration + Policy Gate
+## Functional Module Guide
 
-**Purpose:** Improve detector quality via human labeling and metrics while adding an auditable policy gate for outgoing drafts.
+### Ingestion (`inquisitor/ingestion/`)
+**Purpose:** Ingest data, store in SQLite, and run the rule-based detector.
 
-### `phase2/gate.py`
-- Core logic for policy gating.
-- Loads regex policy rules from `config/policy_gate.yml` into `GateRule` objects.
-- Evaluates text and returns a `GateDecision` with:
-  - **decision:** `allow`, `flag`, or `block`.
-  - **reasons:** matched rule metadata and snippets.
-  - **llm_reason:** optional explanation from a stub LLM provider.
-- Default policy: any `block` hit → block; else if `flag` score ≥ 1 → flag; otherwise allow.
+- `cli.py`
+  - Entry point for the ingestion pipeline.
+  - Loads settings from `config/` via `inquisitor.ingestion.config.Settings`.
+  - Applies migrations (`migrations/001_init.sql`, `migrations/004_offline_fixtures.sql`).
+  - Runs scraper and detector, then prints a summary.
+- `config.py`
+  - Loads YAML configuration (`subreddits.yml`, `scraper_rules.yml`, `detector_rules.yml`).
+  - Sets the database path (defaults to `inquisitor_net_phase1.db`).
+- `db.py`
+  - SQLite connection and migration helpers.
+- `scraper.py`
+  - Reads from fixtures, offline DB, or Reddit API.
+  - Applies regex include/exclude rules and `discard_if` filters.
+  - Writes kept items to `scrape_hits`.
+- `detector.py`
+  - Compiles regex rules with weights and exculpatory patterns.
+  - Inserts into `detector_marks` or `detector_acquittals` based on thresholds.
 
-### `phase2/gate_cli.py`
-- CLI wrapper that reads a JSONL file of drafts (`{"text": ...}`) and writes policy decisions.
-- Invokes `phase2.gate.check_draft()` for each item.
-- Produces an auditable JSONL output with decision metadata and reasons.
+### Policy (`inquisitor/policy/`)
+**Purpose:** Apply policy checks to outgoing drafts.
 
-### `phase2/label_cli.py`
-- CLI tool for human labeling of detector outcomes.
-- Samples items from `detector_marks` and `detector_acquittals`.
-- Prompts for TP/FP/TN/FN labels and stores them in the `labels` table.
+- `gate.py`
+  - Loads rules from `config/policy_gate.yml`.
+  - Returns `allow`, `flag`, or `block` decisions with reasons.
+- `gate_cli.py`
+  - Reads JSONL drafts and writes JSONL decisions.
 
-### `phase2/metrics_job.py`
-- Aggregates labels into detector metrics (precision, recall, F1).
-- Outputs both CSV and Markdown reports under `reports/metrics/`.
+### Labeling (`inquisitor/labeling/`)
+**Purpose:** Human labeling of detector outcomes.
 
-### Related components
-- `config/policy_gate.yml` contains regex rules and actions (note/flag/block).
-- `migrations/002_phase2.sql` adds Phase 2 tables such as `labels` and `policy_checks`.
+- `label_cli.py`
+  - Samples `detector_marks` / `detector_acquittals`.
+  - Prompts for TP/FP/TN/FN labels and writes to `labels`.
 
----
+### Metrics (`inquisitor/metrics/`)
+**Purpose:** Aggregated reporting for model quality.
 
-## Phase 3: Inquisitor Actions
+- `metrics_job.py`
+  - Computes precision/recall/F1 from `labels`.
+  - Writes CSV and Markdown reports to `reports/metrics/`.
 
-**Purpose:** Translate detector marks into concrete planned actions (posts, dossiers, logs) while reusing the policy gate to prevent unsafe outputs.
+### Operations (`inquisitor/operations/`)
+**Purpose:** Plan actions based on detector outputs.
 
-### `phase3/inquisitor_cli.py`
-- CLI pipeline for Phase 3.
-- Reads a JSONL file of marks (`item_id`, `score`, `rationale`).
-- Uses `phase3.bots.BaseBot` to decide an action for each mark.
-- If the action is a **post**, it is passed through the Phase 2 policy gate; blocked or flagged posts are downgraded to dossiers.
-- Inserts planned actions into `planned_actions` and generated dossiers into `dossiers`.
-
-### `phase3/bots/base.py`
-- Defines the simplest decision policy via `BaseBot`:
-  - score ≥ 0.8 → create a **post** draft.
-  - score ≥ 0.5 → create a **dossier**.
-  - otherwise → **log** only.
-- `InquisitorPersonality` provides a minimal persona configuration (name, style, traits) for future expansion.
-
-### Related components
-- Phase 3 stores outputs in SQLite tables created by `ensure_phase3_tables()` inside the CLI.
-- It reuses `phase2.gate.check_draft()` for the same policy standards established in Phase 2.
-
----
-
-## End-to-End Flow (Quick Summary)
-1. **Phase 1** ingests content and stores `scrape_hits`, then marks or acquits via regex scoring.
-2. **Phase 2** lets humans label detector results and generates daily metrics; it also adds the policy gate for outgoing drafts.
-3. **Phase 3** consumes marks to plan actions and routes any public-facing draft through the Phase 2 gate.
+- `inquisitor_cli.py`
+  - Reads marks, chooses actions via bots, gates post drafts.
+  - Writes `planned_actions` and `dossiers` in SQLite.
+- `bots/base.py`
+  - Defines `BaseBot` decision logic and `InquisitorPersonality`.
 
 ---
 
-## Suggested Starting Points for Newcomers
-- Start with `phase1/cli.py` to see the entry point and control flow.
-- Follow the data flow in `scraper.py` → `detector.py` → SQLite tables.
-- Explore `phase2/gate.py` to understand the policy logic used in later phases.
-- Review `phase3/inquisitor_cli.py` and `phase3/bots/base.py` for the action planning layer.
+## Updated CLI Entry Points
+- `python -m inquisitor.ingestion.cli`
+- `python -m inquisitor.policy.gate_cli`
+- `python -m inquisitor.labeling.label_cli`
+- `python -m inquisitor.metrics.metrics_job`
+- `python -m inquisitor.operations.inquisitor_cli`
+
+---
+
+## Compatibility Notes
+- Database schema remains unchanged; existing migrations still apply.
+- Import paths have been updated to match new module locations.
+- Phase naming is retained in data/models for historical continuity, but directory names are now functional.

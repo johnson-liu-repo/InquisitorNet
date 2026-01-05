@@ -1,4 +1,4 @@
-# phase2/gate_cli.py
+# inquisitor/policy/gate_cli.py
 import argparse, json, sys
 from pathlib import Path
 from .gate import check_draft

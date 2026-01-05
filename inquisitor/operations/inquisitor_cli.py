@@ -1,10 +1,11 @@
-# phase3/inquisitor_cli.py
+# inquisitor/operations/inquisitor_cli.py
 import argparse, json, sqlite3
 from pathlib import Path
-from .bots.base import BaseBot, InquisitorPersonality
-from phase2.gate import check_draft
 
-def ensure_phase3_tables(conn):
+from inquisitor.operations.bots.base import BaseBot, InquisitorPersonality
+from inquisitor.policy.gate import check_draft
+
+def ensure_operations_tables(conn):
     conn.execute("CREATE TABLE IF NOT EXISTS planned_actions (id INTEGER PRIMARY KEY AUTOINCREMENT, item_id TEXT, type TEXT, payload_json TEXT, status TEXT DEFAULT 'queued', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)")
     conn.execute("CREATE TABLE IF NOT EXISTS dossiers (id INTEGER PRIMARY KEY AUTOINCREMENT, subject_token TEXT, markdown TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, visibility TEXT DEFAULT 'private')")
 
@@ -27,7 +28,7 @@ def main():
 
     bot = BaseBot(InquisitorPersonality(name="Verax"))
     with sqlite3.connect(args.db) as conn, open(args.marks_jsonl) as f:
-        ensure_phase3_tables(conn)
+        ensure_operations_tables(conn)
         for line in f:
             mark = json.loads(line)
             decision = bot.decide(mark)

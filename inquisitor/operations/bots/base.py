@@ -1,4 +1,4 @@
-# phase3/bots/base.py
+# inquisitor/operations/bots/base.py
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, Any, Optional
