@@ -6,7 +6,11 @@ from inquisitor.ingestion.db import get_conn, migrate, column_exists
 from inquisitor.ingestion.scraper import run_scraper_to_db
 from inquisitor.ingestion.detector import run_detector_to_db
 
-BASE = Path(__file__).resolve().parents[1]
+
+# print(Path(__file__).resolve().parents[:])
+BASE = Path(__file__).resolve().parents[2]
+# print(BASE)
+
 
 def main():
     ap = argparse.ArgumentParser(description="Phase 1 pipeline (scraper + detector)")
