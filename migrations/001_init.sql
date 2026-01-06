@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS detector_marks (
   comment_text TEXT,
   post_meta_json TEXT,
   reasoning_for_mark TEXT,
+  rules_triggered TEXT,
   degree_of_confidence REAL,
   created_at TEXT DEFAULT (datetime('now'))
 );
@@ -28,6 +29,7 @@ CREATE TABLE IF NOT EXISTS detector_acquittals (
   comment_text TEXT,
   post_meta_json TEXT,
   reasoning_for_acquittal TEXT,
+  rules_triggered TEXT,
   degree_of_confidence REAL,
   created_at TEXT DEFAULT (datetime('now'))
 );
