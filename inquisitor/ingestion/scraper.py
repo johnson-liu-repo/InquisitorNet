@@ -4,6 +4,7 @@ import json, re, time, os
 from typing import Dict, Any, List, Iterable, Optional
 
 from core.reddit_client import RedditClient
+from inquisitor.policy.gate import load_rules, evaluate_text
 
 def regex_list(patterns: List[str]) -> List[re.Pattern]:
     return [re.compile(p) for p in patterns]
@@ -97,6 +98,11 @@ def run_scraper_to_db(settings, conn):
     fixtures_path = settings.subreddits.get('fixtures_path', 'fixtures/reddit_sample.jsonl')
     offline_table = settings.subreddits.get('offline_table', 'fixtures_submissions')
     read_limit = settings.subreddits.get('read_limit')
+    discard_rules = cfg.get('discard_rules', {})
+    min_length = discard_rules.get('min_length')
+    allow = {s.lower() for s in settings.subreddits.get('allow', [])}
+    avoid = {s.lower() for s in settings.subreddits.get('avoid', [])}
+    policy_rules = load_rules(settings.policy_gate_path)
 
     cur = conn.cursor()
 
@@ -119,6 +125,11 @@ def run_scraper_to_db(settings, conn):
 
     kept = 0
     for item in stream:
+        subreddit = item.get('subreddit', '')
+        if allow and subreddit.lower() not in allow:
+            continue
+        if subreddit.lower() in avoid:
+            continue
         body = item.get('body','')
         if any(rule.startswith('len(') for rule in cfg.get('discard_if', [])):
             # Very simple eval for len(body) style conditions
@@ -132,6 +143,13 @@ def run_scraper_to_db(settings, conn):
                     pass
             if body is None:
                 continue
+        if min_length:
+            if len(body.split()) < int(min_length):
+                continue
+
+        policy_decision = evaluate_text(body, policy_rules)
+        if policy_decision.decision != "allow":
+            continue
 
         ok, hits = item_matches(body, include, exclude, policy)
         if not ok:

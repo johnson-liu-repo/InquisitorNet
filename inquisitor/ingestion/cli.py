@@ -2,7 +2,7 @@ import argparse
 from pathlib import Path
 
 from inquisitor.ingestion.config import Settings
-from inquisitor.ingestion.db import get_conn, migrate
+from inquisitor.ingestion.db import get_conn, migrate, column_exists
 from inquisitor.ingestion.scraper import run_scraper_to_db
 from inquisitor.ingestion.detector import run_detector_to_db
 
@@ -23,6 +23,8 @@ def main():
     conn = get_conn(settings.database_path)
     migrate(conn, BASE / "migrations" / "001_init.sql")
     migrate(conn, BASE / "migrations" / "004_offline_fixtures.sql")
+    if not column_exists(conn, "detector_marks", "rules_triggered"):
+        migrate(conn, BASE / "migrations" / "005_rules_triggered.sql")
 
     kept = run_scraper_to_db(settings, conn)
     marked, acquitted = run_detector_to_db(settings, conn)

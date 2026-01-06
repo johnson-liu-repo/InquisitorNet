@@ -23,3 +23,5 @@ rate_limit:
   requests_per_minute: 60
 discard_if:
   - "len(body) < 20"
+discard_rules:
+  min_length: 5

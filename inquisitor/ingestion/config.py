@@ -12,4 +12,5 @@ class Settings:
         self.subreddits = load_yaml(base/'config'/'subreddits.yml')
         self.scraper = load_yaml(base/'config'/'scraper_rules.yml')
         self.detector = load_yaml(base/'config'/'detector_rules.yml')
+        self.policy_gate_path = base/'config'/'policy_gate.yml'
         self.database_path = str(base/'inquisitor_net_phase1.db')
