@@ -2,6 +2,8 @@ from __future__ import annotations
 import re, json
 from typing import List, Dict, Any
 
+from inquisitor.ingestion.llm_stub import LLMReasoningStub
+
 def compile_rules(rules: List[Dict[str, Any]]):
     """Compile detection rules into regex patterns.
 
@@ -22,33 +24,22 @@ def compile_rules(rules: List[Dict[str, Any]]):
         })
     return out
 
-def explain_noop(mark_score: float, matched: List[str], exculp: List[str], text: str) -> str:
-    """Explain the reasoning behind a "no operation" (noop) decision.
-
-    Args:
-        mark_score (float): The score assigned to the item.
-        matched (List[str]): List of matched rule IDs.
-        exculp (List[str]): List of exculpatory rule IDs.
-        text (str): The text content being analyzed.
-
-    Returns:
-        str: Explanation of the noop decision.
-    """
-    if matched and not exculp:
-        return f"Matched {', '.join(matched)}; no benign context detected."
-    if exculp:
-        return f"Benign context matched ({', '.join(exculp)}); likely non-heretical."
-    return "No strong signals."
-    
 def run_detector_to_db(settings, conn):
     rules = compile_rules(settings.detector.get('rules', []))
     th_mark = float(settings.detector.get('thresholds', {}).get('mark', 0.65))
     th_acquit = float(settings.detector.get('thresholds', {}).get('acquit', 0.35))
+    reasoning_stub = LLMReasoningStub()
     cur = conn.cursor()
+    cur.execute("SELECT item_id FROM detector_marks")
+    processed = {row[0] for row in cur.fetchall()}
+    cur.execute("SELECT item_id FROM detector_acquittals")
+    processed.update(row[0] for row in cur.fetchall())
     cur.execute("SELECT item_id, subreddit, body, post_meta_json FROM scrape_hits")
     rows = cur.fetchall()
     n_mark = n_acquit = 0
     for item_id, subreddit, body, post_meta_json in rows:
+        if item_id in processed:
+            continue
         matched_ids = []
         exculp_ids = []
         score = 0.0
@@ -62,16 +53,16 @@ def run_detector_to_db(settings, conn):
                     score -= 0.2  # small deduction for benign context
         score = max(0.0, min(1.0, score))  # clamp
         if score >= th_mark:
-            reasoning = explain_noop(score, matched_ids, [], body)
-            cur.execute('''INSERT INTO detector_marks (item_id, subreddit, comment_text, post_meta_json, reasoning_for_mark, degree_of_confidence)
-                           VALUES (?,?,?,?,?,?)''',
-                        (item_id, subreddit, body, post_meta_json, reasoning, score))
+            reasoning = reasoning_stub.explain_mark(matched_ids, score, th_mark)
+            cur.execute('''INSERT INTO detector_marks (item_id, subreddit, comment_text, post_meta_json, reasoning_for_mark, rules_triggered, degree_of_confidence)
+                           VALUES (?,?,?,?,?,?,?)''',
+                        (item_id, subreddit, body, post_meta_json, reasoning.reasoning, json.dumps(matched_ids), reasoning.confidence))
             n_mark += 1
         elif score <= th_acquit:
-            reasoning = explain_noop(score, [], exculp_ids, body)
-            cur.execute('''INSERT INTO detector_acquittals (item_id, subreddit, comment_text, post_meta_json, reasoning_for_acquittal, degree_of_confidence)
-                           VALUES (?,?,?,?,?,?)''',
-                        (item_id, subreddit, body, post_meta_json, reasoning, 1.0-score))
+            reasoning = reasoning_stub.explain_acquittal(matched_ids, exculp_ids, score, th_acquit)
+            cur.execute('''INSERT INTO detector_acquittals (item_id, subreddit, comment_text, post_meta_json, reasoning_for_acquittal, rules_triggered, degree_of_confidence)
+                           VALUES (?,?,?,?,?,?,?)''',
+                        (item_id, subreddit, body, post_meta_json, reasoning.reasoning, json.dumps(matched_ids + exculp_ids), reasoning.confidence))
             n_acquit += 1
         else:
             # hold for later, neither marked nor acquitted (still stored only in scrape_hits)

@@ -11,3 +11,8 @@ def migrate(conn: sqlite3.Connection, sql_path: str|Path):
         sql = f.read()
     conn.executescript(sql)
     conn.commit()
+
+
+def column_exists(conn: sqlite3.Connection, table: str, column: str) -> bool:
+    cur = conn.execute(f"PRAGMA table_info({table})")
+    return any(row[1] == column for row in cur.fetchall())
