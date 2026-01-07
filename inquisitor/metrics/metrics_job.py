@@ -17,6 +17,28 @@ def compute_metrics(conn, days=7):
     f1 = 2*precision*recall/(precision+recall) if (precision+recall) else 0.0
     return {"tp":tp,"fp":fp,"tn":tn,"fn":fn,"precision":precision,"recall":recall,"f1":f1}
 
+def write_metrics_to_db(conn, metrics: dict, day: str | None = None) -> None:
+    if day is None:
+        day = datetime.utcnow().strftime('%Y-%m-%d')
+    conn.execute(
+        """
+        INSERT OR REPLACE INTO metrics_detector_daily
+        (day, precision, recall, f1, tp, fp, tn, fn)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            day,
+            metrics["precision"],
+            metrics["recall"],
+            metrics["f1"],
+            metrics["tp"],
+            metrics["fp"],
+            metrics["tn"],
+            metrics["fn"],
+        ),
+    )
+    conn.commit()
+
 def write_reports(metrics: dict, out_dir: Path):
     out_dir.mkdir(parents=True, exist_ok=True)
     ts = datetime.utcnow().strftime('%Y%m%d')
@@ -42,9 +64,12 @@ def main():
     ap.add_argument('--db', default='inquisitor_net.db')
     ap.add_argument('--days', type=int, default=7)
     ap.add_argument('--out', default='reports/metrics')
+    ap.add_argument('--write-db', action='store_true', help='Persist metrics to DB table')
     args = ap.parse_args()
     with sqlite3.connect(args.db) as conn:
         m = compute_metrics(conn, days=args.days)
+        if args.write_db:
+            write_metrics_to_db(conn, m)
     write_reports(m, Path(args.out))
     print("Metrics written to", args.out)
 
