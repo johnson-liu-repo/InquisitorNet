@@ -5,7 +5,7 @@ from pathlib import Path
 DB_DEFAULT = "inquisitor_net_phase1.db"
 
 SCHEMA = {
-    "labels": "CREATE TABLE IF NOT EXISTS labels(item_id TEXT PRIMARY KEY, label TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)"
+    "labels": "CREATE TABLE IF NOT EXISTS labels(item_id TEXT PRIMARY KEY, label TEXT, notes TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)"
 }
 
 def ensure_schema(conn):
@@ -41,18 +41,23 @@ def label_loop(conn, items):
     for it in items:
         print(f"Item: {it}")
         label = input("Label [TP/FP/TN/FN/skip]: ").strip().upper()
+        notes = input("Notes (optional): ").strip()
         if not label or label == "SKIP":
             continue
         if label not in {"TP","FP","TN","FN"}:
             print("Invalid label; skipping.")
             continue
-        conn.execute("INSERT OR REPLACE INTO labels(item_id, label) VALUES (?,?)", (it, label))
+        conn.execute(
+            "INSERT OR REPLACE INTO labels(item_id, label, notes) VALUES (?,?,?)",
+            (it, label, notes or None),
+        )
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--db", default=DB_DEFAULT)
     ap.add_argument("--limit", type=int, default=20)
     ap.add_argument("--near-threshold", action="store_true")
+    ap.add_argument("--notes", default=None, help="Notes to apply in non-interactive mode")
     args = ap.parse_args()
     with sqlite3.connect(args.db) as conn:
         items = sample_items(conn, near_threshold_only=args.near_threshold, limit=args.limit)

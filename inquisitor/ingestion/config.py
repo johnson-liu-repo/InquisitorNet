@@ -9,6 +9,7 @@ def load_yaml(path: str|Path):
 class Settings:
     def __init__(self, base_dir: str|Path):
         base = Path(base_dir)
+        self.base_path = base
         self.subreddits = load_yaml(base/'config'/'subreddits.yml')
         self.scraper = load_yaml(base/'config'/'scraper_rules.yml')
         self.detector = load_yaml(base/'config'/'detector_rules.yml')

@@ -47,3 +47,21 @@ Expect a summary like "Scraper kept X items. Detector marked Y, acquitted Z."
 
 **Acquitted**:<br>
 `python -m sqlite3 inquisitor_net_phase1.db "SELECT item_id, subreddit, rules_triggered, reasoning_for_acquittal FROM detector_acquittals ORDER BY item_id;"`
+
+---
+
+### Phase 2
+
+#### Test Run
+
+1. Run the policy gate pipeline against fixture drafts (persists to `policy_checks`):<br>
+`python -m inquisitor.pipelines.cli --db inquisitor_net_phase1.db --drafts fixtures/drafts.jsonl --policy-config config/policy_gate.yml`
+1. (Optional) Generate JSONL gate output and persist to DB via the policy CLI:<br>
+`python -m inquisitor.policy.gate_cli --input fixtures/drafts.jsonl --config config/policy_gate.yml --db inquisitor_net_phase1.db --draft-scope fixtures`
+1. Verify the Phase 2 checks (policy gate, labels, metrics are optional by default):<br>
+`python verifications/verify_inquisitornet.py --db inquisitor_net_phase1.db --config-dir config --require-acquittals false --require-labels false --require-metrics false`
+
+#### Check Output
+
+**Policy checks**:<br>
+`python -m sqlite3 inquisitor_net_phase1.db "SELECT id, draft_scope, allow, flags, raw_match, created_at FROM policy_checks ORDER BY id;"`

@@ -70,6 +70,43 @@ def evaluate_text(text: str, rules: List[GateRule]) -> GateDecision:
         decision = "allow"
     return GateDecision(decision=decision, reasons=hits)
 
+
+def evaluate_text_with_raw_matches(
+    text: str,
+    rules: List[GateRule],
+) -> tuple[GateDecision, Dict[str, List[str]]]:
+    hits = []
+    raw_match: Dict[str, List[str]] = {}
+    block_score = 0.0
+    flag_score = 0.0
+    for rule in rules:
+        m = rule.compiled().search(text or "")
+        if not m:
+            continue
+        snippet = m.group(0)
+        raw_match.setdefault(rule.id, []).append(snippet)
+        hit = {
+            "id": rule.id,
+            "category": rule.category,
+            "action": rule.action,
+            "weight": rule.weight,
+            "snippet": snippet,
+        }
+        hits.append(hit)
+        if rule.action == "block":
+            block_score += rule.weight
+        elif rule.action == "flag":
+            flag_score += rule.weight
+
+    if any(h["action"] == "block" for h in hits):
+        decision = "block"
+    elif flag_score >= 1.0:
+        decision = "flag"
+    else:
+        decision = "allow"
+
+    return GateDecision(decision=decision, reasons=hits), raw_match
+
 # Optional LLM reasoning hook — pluggable provider, defaults to stub
 class LLMProvider:
     def summarize(self, text: str, hits: List[Dict[str, Any]]) -> str:
